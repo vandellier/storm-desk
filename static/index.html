@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>StormDesk</title>
+  <link rel="icon" type="image/svg+xml" href="/static/assets/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <header class="brand">
+        <div class="logo" aria-hidden="true">
+          <span class="sweep"></span>
+        </div>
+        <div>
+          <h1>StormDesk</h1>
+          <p class="tag">NWS · NEXRAD · live</p>
+        </div>
+        <button id="sidebar-close" class="icon-btn" type="button" aria-label="Close sidebar">✕</button>
+      </header>
+
+      <section class="panel filters">
+        <h2>Watch area</h2>
+        <label class="field">
+          <span>State</span>
+          <select id="state-select">
+            <option value="">All states</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>County</span>
+          <input id="county-q" type="search" placeholder="Search counties…" autocomplete="off" />
+          <div id="county-results" class="suggest" hidden></div>
+        </label>
+        <label class="field">
+          <span>City</span>
+          <input id="city-q" type="search" placeholder="Search cities…" autocomplete="off" />
+          <div id="city-results" class="suggest" hidden></div>
+        </label>
+        <div id="chips" class="chips"></div>
+        <div class="row-actions">
+          <button id="use-location" type="button">Use my location</button>
+          <button id="clear-filters" type="button" class="ghost">Clear</button>
+        </div>
+      </section>
+
+      <section class="panel local-panel" id="local-panel">
+        <div class="panel-head">
+          <h2>This area</h2>
+          <span id="local-name" class="count">map</span>
+        </div>
+        <div id="local-body" class="local-body">
+          <p class="empty">Search a city or county for weather.gov, NOAA Weather Radio, and cameras.</p>
+        </div>
+      </section>
+
+      <section class="panel kinds">
+        <h2>Hazards</h2>
+        <div class="kind-grid">
+          <label><input type="checkbox" data-kind="tornado" checked /> Tornado</label>
+          <label><input type="checkbox" data-kind="severe" checked /> Severe</label>
+          <label><input type="checkbox" data-kind="flood" checked /> Flood</label>
+          <label><input type="checkbox" data-kind="winter" checked /> Winter</label>
+          <label><input type="checkbox" data-kind="tropical" checked /> Tropical</label>
+          <label><input type="checkbox" data-kind="fire" checked /> Fire</label>
+          <label><input type="checkbox" data-kind="other" checked /> Other</label>
+        </div>
+      </section>
+
+      <section class="panel alerts-panel">
+        <div class="panel-head">
+          <h2>Active alerts</h2>
+          <span id="alert-count" class="count">0</span>
+        </div>
+        <div id="alert-list" class="alert-list"></div>
+      </section>
+    </aside>
+
+    <main id="stage">
+      <div id="map"></div>
+
+      <div id="topbar">
+        <button id="sidebar-open" class="icon-btn" type="button" aria-label="Open sidebar">☰</button>
+        <div class="layers" role="tablist">
+          <button data-layer="reflectivity" class="active" type="button">Reflectivity</button>
+          <button data-layer="velocity" type="button">Velocity</button>
+          <button data-layer="tracks" type="button">Storm tracks</button>
+        </div>
+        <div class="radar-loop">
+          <button id="loop-toggle" type="button" title="Play / pause">❚❚</button>
+          <input id="loop-slider" type="range" min="0" max="0" value="0" />
+          <span id="loop-time" class="mono">--:--</span>
+          <label class="opacity">
+            <span>Op</span>
+            <input id="radar-opacity" type="range" min="0" max="100" value="72" />
+          </label>
+        </div>
+        <div id="site-chip" class="site-chip">NEXRAD —</div>
+        <button id="notify-btn" type="button">Enable alerts</button>
+      </div>
+
+      <footer id="statusbar">
+        <span id="ws-dot" class="dot off"></span>
+        <span id="ws-label">connecting</span>
+        <span class="sep">·</span>
+        <span id="status-nws">NWS …</span>
+        <span class="sep">·</span>
+        <span id="status-radar">Radar …</span>
+        <span class="sep">·</span>
+        <span id="status-rot">Rotation …</span>
+      </footer>
+    </main>
+
+    <div id="ticker" aria-label="Alert ticker">
+      <button id="ticker-live" class="ticker-live" type="button" title="Pause or resume the ticker">
+        <span class="ticker-pulse" aria-hidden="true"></span>
+        <span id="ticker-scope">US</span>
+        <span id="ticker-n" class="ticker-n">0</span>
+      </button>
+      <div class="ticker-viewport">
+        <div id="ticker-track" class="ticker-track">
+          <span class="ticker-empty">Waiting for NWS alerts…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="reader" class="reader" hidden>
+    <div class="reader-card" role="dialog" aria-modal="true" aria-labelledby="reader-title">
+      <header class="reader-bar">
+        <div class="reader-heading">
+          <p id="reader-kicker" class="tag"></p>
+          <h3 id="reader-title">Alert</h3>
+        </div>
+        <button id="reader-close" type="button">Close</button>
+      </header>
+      <div id="reader-body" class="reader-body"></div>
+    </div>
+  </div>
+
+  <div id="shot" class="shot" hidden>
+    <div class="shot-card" role="dialog" aria-modal="true" aria-labelledby="shot-title">
+      <header class="reader-bar">
+        <h3 id="shot-title">Camera</h3>
+        <button id="shot-close" type="button">Close</button>
+      </header>
+      <img id="shot-img" alt="" />
+      <div id="shot-meta" class="shot-meta"></div>
+    </div>
+  </div>
+
+  <div id="nwr-player" class="nwr-player" hidden>
+    <div class="nwr-player-top">
+      <div class="nwr-player-id">
+        <strong id="nwr-title">NOAA Weather Radio</strong>
+        <span id="nwr-meta"></span>
+      </div>
+      <a id="nwr-page" href="https://noaaweatherradio.org/" target="_blank" rel="noopener">About this stream</a>
+      <button id="nwr-close" type="button">Stop</button>
+    </div>
+    <audio id="nwr-audio" controls preload="none"></audio>
+    <p id="nwr-status" class="nwr-status"></p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
